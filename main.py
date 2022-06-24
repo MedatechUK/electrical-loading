@@ -17,13 +17,13 @@ import pyodbc
 # POST into Interim Table
 # 
 
-# conn = pyodbc.connect('Driver={SQL Server};'
-#                       'Server=TEST-SERVER\PRI;'
-#                       'Database=demo;'
-#                       'UID=tabula;'
-#                       'PWD=R33sM4chin3r4!')
+conn = pyodbc.connect('Driver={SQL Server};'
+                      'Server=TEST-SERVER\PRI;'
+                      'Database=demo;'
+                      'UID=tabula;'
+                      'PWD=R33sM4chin3r4!')
 
-# cursor = conn.cursor()
+cursor = conn.cursor()
 
 def get_attributes(row):
     ID = row.find('ID').text
@@ -36,19 +36,29 @@ def get_attributes(row):
     return {'ID': ID, 'DESCRIPTION': DESCRIPTION, 'MANUFACTURER': MANUFACTURER, 'PART_NUMBER': PART_NUMBER, 
             'INTERNAL_CODE': INTERNAL_CODE, 'QUANTITY': QUANTITY }    
 
+def get_pri_time():
+    fmt = '%d/%m/%y'
+
+    d1 = datetime.strptime('01/01/88', fmt)
+    d2 = datetime.strptime(datetime.now().strftime('%d/%m/%y'), fmt)
+
+    daysDiff = (d2-d1).days
+
+    # Convert days to minutes
+    minutesDiff = daysDiff * 24 * 60
+
+    return minutesDiff
+
 def get_max_line_trans():
-    # cursor.execute('SELECT MAX(LINE) FROM ZODA_TRANS;')
-    # return cursor.fetchone()[0]
-    return 1
+    cursor.execute('SELECT MAX(LINE) FROM ZODAT_TRANS;')
+    return cursor.fetchone()[0]
 
 def get_max_line_load():
-    # cursor.execute('SELECT MAX(LINE) FROM ZODA_TRANS;')
-    # return cursor.fetchone()[0]
-    return 1
+    cursor.execute('SELECT MAX(LINE) FROM ZODAT_TRANS;')
+    return cursor.fetchone()[0]
 
 def parse_xml(path):
     myuuid = str(uuid.uuid4())
-    # print(myuuid)
 
     doc = ET.parse(path).getroot()
 
@@ -58,27 +68,29 @@ def parse_xml(path):
     
     max_line_parent = get_max_line_trans()
     # GET LOADTYPE BY SELECTING 'EL' FROM ZODAT_TYPE
-    # sql = '''INSERT INTO ZODA_TRANS (LINE, BUBBLEID, LOADTYPE, CREATEDATE) 
-    #         VALUES (?, ?, ?, ?)'''
-    # val = (max_line_parent + 1, myuuid, 2, get_pri_time())
-    # cursor.execute(sql, val)
+    sql = '''SET IDENTITY_INSERT ZODAT_TRANS ON
+            INSERT INTO ZODAT_TRANS (LINE, BUBBLEID, LOADTYPE, CREATEDATE) 
+            VALUES (?, ?, ?, ?)
+            SET IDENTITY_INSERT ZODAT_TRANS OFF'''
+    val = (max_line_parent + 1, myuuid, 2, get_pri_time())
+    cursor.execute(sql, val)
 
     max_line_load = get_max_line_load()
-    # sql = '''INSERT INTO ZODA_LOAD (LINE, RECORDTYPE, TEXT1, TEXT2) 
-    #         VALUES (?, ?, ?, ?)'''
-    # val = (max_line_load + 1, '1'', parent_partname, parent_partname)
-    # cursor.execute(sql, val)
+    sql = '''INSERT INTO ZODAT_LOAD (LINE, RECORDTYPE, TEXT1, TEXT2) 
+            VALUES (?, ?, ?, ?)'''
+    val = (max_line_load + 1, '1', parent_partname, parent_partname)
+    cursor.execute(sql, val)
     
     for row in rows:
         attr = get_attributes(row)
         max_line_load = get_max_line_load()
         
-        # sql = '''INSERT INTO ZODA_LOAD (LINE, RECORDTYPE, PARENT, TEXT1, TEXT2, TEXT3, TEXT4, INT1, INT2) 
-        #         VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
-        # val = (max_line_load + 1, '1'', max_line_parent + 1, attr['INTERNAL_CODE'], attr['DESCRIPTION'], attr['MANUFACTURER'], attr['INTERNAL_CODE'], attr['QUANTITY'], attr['ID'])
-        # cursor.execute(sql, val)
+        sql = '''INSERT INTO ZODAT_LOAD (LINE, RECORDTYPE, PARENT, TEXT1, TEXT2, TEXT3, TEXT4, INT1, INT2) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        val = (int(attr['ID']), '1', max_line_parent + 1, attr['INTERNAL_CODE'], attr['DESCRIPTION'], attr['MANUFACTURER'], attr['INTERNAL_CODE'], int(attr['QUANTITY']), int(attr['ID']))
+        cursor.execute(sql, val)
         
-    # conn.commit()
+    conn.commit()
     
 parse_xml(os.path.join('rmged204-1.xml'))
 
