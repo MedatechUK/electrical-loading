@@ -56,11 +56,11 @@ def parse_xml(path):
 
     parent_partname = os.path.basename(path).split('.')[0]
     
-    max_line_trans = get_max_line_trans()
+    max_line_parent = get_max_line_trans()
     # GET LOADTYPE BY SELECTING 'EL' FROM ZODAT_TYPE
     # sql = '''INSERT INTO ZODA_TRANS (LINE, BUBBLEID, LOADTYPE, CREATEDATE) 
     #         VALUES (?, ?, ?, ?)'''
-    # val = (max_line_trans + 1, myuuid, 2, get_pri_time())
+    # val = (max_line_parent + 1, myuuid, 2, get_pri_time())
     # cursor.execute(sql, val)
 
     max_line_load = get_max_line_load()
@@ -73,9 +73,9 @@ def parse_xml(path):
         attr = get_attributes(row)
         max_line_load = get_max_line_load()
         
-        # sql = '''INSERT INTO ZODA_LOAD (LINE, RECORDTYPE, TEXT1, TEXT2, TEXT3, TEXT4, INT1, INT2) 
+        # sql = '''INSERT INTO ZODA_LOAD (LINE, RECORDTYPE, PARENT, TEXT1, TEXT2, TEXT3, TEXT4, INT1, INT2) 
         #         VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
-        # val = (max_line_load + 1, '1'', attr['INTERNAL_CODE'], attr['DESCRIPTION'], attr['MANUFACTURER'], attr['INTERNAL_CODE'], attr['QUANTITY'], attr['ID'])
+        # val = (max_line_load + 1, '1'', max_line_parent + 1, attr['INTERNAL_CODE'], attr['DESCRIPTION'], attr['MANUFACTURER'], attr['INTERNAL_CODE'], attr['QUANTITY'], attr['ID'])
         # cursor.execute(sql, val)
         
     # conn.commit()
