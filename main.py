@@ -64,9 +64,9 @@ def parse_xml(path):
     # cursor.execute(sql, val)
 
     max_line_load = get_max_line_load()
-    # sql = '''INSERT INTO ZODA_LOAD (LINE, RECORDTYPE, TEXT1) 
-    #         VALUES (?, ?, ?)'''
-    # val = (max_line_load + 1, '1'', parent_partname)
+    # sql = '''INSERT INTO ZODA_LOAD (LINE, RECORDTYPE, TEXT1, TEXT2) 
+    #         VALUES (?, ?, ?, ?)'''
+    # val = (max_line_load + 1, '1'', parent_partname, parent_partname)
     # cursor.execute(sql, val)
     
     for row in rows:
@@ -75,7 +75,7 @@ def parse_xml(path):
         
         # sql = '''INSERT INTO ZODA_LOAD (LINE, RECORDTYPE, TEXT1, TEXT2, TEXT3, TEXT4, INT1, INT2) 
         #         VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
-        # val = (max_line_load + 1, '1'', attr['PART_NUMBER'], attr['DESCRIPTION'], attr['MANUFACTURER'], attr['INTERNAL_CODE'], attr['QUANTITY'], attr['ID'])
+        # val = (max_line_load + 1, '1'', attr['INTERNAL_CODE'], attr['DESCRIPTION'], attr['MANUFACTURER'], attr['INTERNAL_CODE'], attr['QUANTITY'], attr['ID'])
         # cursor.execute(sql, val)
         
     # conn.commit()
