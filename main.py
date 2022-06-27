@@ -37,17 +37,13 @@ def get_attributes(row):
             'INTERNAL_CODE': INTERNAL_CODE, 'QUANTITY': QUANTITY }    
 
 def get_pri_time():
-    fmt = '%d/%m/%y'
+    fmt = '%d/%m/%y %H:%M'
 
-    d1 = datetime.strptime('01/01/88', fmt)
-    d2 = datetime.strptime(datetime.now().strftime('%d/%m/%y'), fmt)
+    d1 = datetime.strptime('01/01/88 00:00', fmt)
+    d2 = datetime.strptime(datetime.now().strftime('%d/%m/%y %H:%M'), fmt)
 
-    daysDiff = (d2-d1).days
-
-    # Convert days to minutes
-    minutesDiff = daysDiff * 24 * 60
-
-    return minutesDiff
+    minutes_diff = (d2 - d1).total_seconds() / 60.0
+    return minutes_diff
 
 def get_max_line_trans():
     cursor.execute('SELECT MAX(LINE) FROM ZODAT_TRANS;')
@@ -85,11 +81,12 @@ def parse_xml(path):
         attr = get_attributes(row)
         max_line_load = get_max_line_load()
         
-        sql = '''INSERT INTO ZODAT_LOAD (LINE, RECORDTYPE, PARENT, TEXT1, TEXT2, TEXT3, TEXT4, INT1, INT2) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'''
-        val = (int(attr['ID']), '1', max_line_parent + 1, attr['INTERNAL_CODE'], attr['DESCRIPTION'], attr['MANUFACTURER'], attr['INTERNAL_CODE'], int(attr['QUANTITY']), int(attr['ID']))
-        cursor.execute(sql, val)
-        
+        if attr['INTERNAL_CODE'] is not None:
+            sql = '''INSERT INTO ZODAT_LOAD (LINE, RECORDTYPE, PARENT, TEXT1, TEXT21, TEXT3, TEXT4, INT1, INT2) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+            val = (int(attr['ID']), '1', max_line_parent + 1, attr['INTERNAL_CODE'], attr['DESCRIPTION'][:60], attr['MANUFACTURER'], attr['INTERNAL_CODE'], int(attr['QUANTITY']), int(attr['ID']))
+            print(val)
+            cursor.execute(sql, val)
     conn.commit()
     
 parse_xml(os.path.join('rmged204-1.xml'))
