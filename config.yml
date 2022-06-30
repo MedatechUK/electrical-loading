@@ -1,0 +1,4 @@
+API_URL: https://priority.rmgroupuk.com/odata/Priority/tabula.ini/
+COMPANY: demo
+PRI_API_PASSWORD: apiuser123!
+PRI_API_USERNAME: apiuser

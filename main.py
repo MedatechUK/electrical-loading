@@ -3,7 +3,9 @@ from datetime import datetime, timedelta
 import uuid
 import os
 import shutil
-import pyodbc
+import yaml
+import logging
+import requests
 
 # <ID>1</ID>
 # <DESCRIPTION>Main leads, female for LTSL</DESCRIPTION>
@@ -15,15 +17,38 @@ import pyodbc
 # Get file name to be the parent PART NUMBER
 # Loop through ROWS and get child parts
 # POST into Interim Table
-# 
 
-conn = pyodbc.connect('Driver={SQL Server};'
-                      'Server=TEST-SERVER\PRI;'
-                      'Database=demo;'
-                      'UID=tabula;'
-                      'PWD=R33sM4chin3r4!')
 
-cursor = conn.cursor()
+#region Global variables
+config = yaml.safe_load(open("config.yml"))
+
+COMPANY = config["COMPANY"]
+API_URL = config["API_URL"]
+PRIORITY_API_USERNAME= config["PRI_API_USERNAME"]
+PRIORITY_API_PASSWORD= config["PRI_API_PASSWORD"]
+#endregion
+
+#region Error logger setup
+path = r"error.log"
+assert os.path.isfile(path)
+logging.basicConfig(filename=path, level=logging.DEBUG, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+#endregion
+
+#region Data logging
+def log_response(res):
+    if res.ok:
+        logging.info("Data posted succesfully to Priority.")
+    elif res.status_code == 409:
+        # send_email(f"Error message: {res.json()['error']['message']}")
+        logging.error(f"Error message: {res.json()['error']['message']}")
+        # send_email("Error", f"Error message: {res.json()['error']['message']}")
+    elif res.status_code == 500:
+        logging.error("Status code 500: Either Priority or the Python program is having problems.")
+        # send_email("Error", "Status code 500: Either Priority or the Flask server is down/having problems.")
+    else:
+        logging.error(f"Error status code: {res.status_code}")
+        # send_email("Error", f"Error status code: {res.status_code}")
+#endregion
 
 def get_attributes(row):
     ID = row.find('ID').text
@@ -36,22 +61,15 @@ def get_attributes(row):
     return {'ID': ID, 'DESCRIPTION': DESCRIPTION, 'MANUFACTURER': MANUFACTURER, 'PART_NUMBER': PART_NUMBER, 
             'INTERNAL_CODE': INTERNAL_CODE, 'QUANTITY': QUANTITY }    
 
-def get_pri_time():
-    fmt = '%d/%m/%y %H:%M'
+def post_zoda_trans(data):
+    r = requests.post(f"{API_URL}{COMPANY}/ZODA_TRANS", json=data, auth=(PRIORITY_API_USERNAME, PRIORITY_API_PASSWORD))
+    # log_response(r)
+    return r
 
-    d1 = datetime.strptime('01/01/88 00:00', fmt)
-    d2 = datetime.strptime(datetime.now().strftime('%d/%m/%y %H:%M'), fmt)
-
-    minutes_diff = (d2 - d1).total_seconds() / 60.0
-    return minutes_diff
-
-def get_max_line_trans():
-    cursor.execute('SELECT MAX(LINE) FROM ZODAT_TRANS;')
-    return cursor.fetchone()[0]
-
-def get_max_line_load():
-    cursor.execute('SELECT MAX(LINE) FROM ZODAT_TRANS;')
-    return cursor.fetchone()[0]
+def post_zoda_load(data):
+    r = requests.post(f"{API_URL}{COMPANY}/ZODA_LOAD", json=data, auth=(PRIORITY_API_USERNAME, PRIORITY_API_PASSWORD))
+    log_response(r)
+    return r
 
 def parse_xml(path):
     myuuid = str(uuid.uuid4())
@@ -62,32 +80,35 @@ def parse_xml(path):
 
     parent_partname = os.path.basename(path).split('.')[0]
     
-    max_line_parent = get_max_line_trans()
-    # GET LOADTYPE BY SELECTING 'EL' FROM ZODAT_TYPE
-    sql = '''SET IDENTITY_INSERT ZODAT_TRANS ON
-            INSERT INTO ZODAT_TRANS (LINE, BUBBLEID, LOADTYPE, CREATEDATE) 
-            VALUES (?, ?, ?, ?)
-            SET IDENTITY_INSERT ZODAT_TRANS OFF'''
-    val = (max_line_parent + 1, myuuid, 2, get_pri_time())
-    cursor.execute(sql, val)
-
-    max_line_load = get_max_line_load()
-    sql = '''INSERT INTO ZODAT_LOAD (LINE, RECORDTYPE, TEXT1, TEXT2) 
-            VALUES (?, ?, ?, ?)'''
-    val = (max_line_load + 1, '1', parent_partname, parent_partname)
-    cursor.execute(sql, val)
+    data =  {
+        "TYPENAME": "EL",
+        "BUBBLEID": myuuid,
+        "ZODA_LOAD_SUBFORM": [
+            {
+                "RECORDTYPE": "1",
+                "TEXT1": parent_partname,
+                "TEXT21": parent_partname,
+            }
+        ]
+    }
     
     for row in rows:
         attr = get_attributes(row)
-        max_line_load = get_max_line_load()
+        #POST CHILDREN TO ZODA_LOAD
+        child_part = {
+            "RECORDTYPE": "2",
+            "TEXT1": attr['INTERNAL_CODE'],
+            "TEXT2": attr['MANUFACTURER'],
+            "TEXT21": attr['DESCRIPTION'][:60],
+            "REAL1": int(attr['QUANTITY']),
+            "INT1": int(attr['ID']),
+        }
+
+        data["ZODA_LOAD_SUBFORM"].append(child_part)
         
-        if attr['INTERNAL_CODE'] is not None:
-            sql = '''INSERT INTO ZODAT_LOAD (LINE, RECORDTYPE, PARENT, TEXT1, TEXT21, TEXT3, TEXT4, INT1, INT2) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'''
-            val = (int(attr['ID']), '1', max_line_parent + 1, attr['INTERNAL_CODE'], attr['DESCRIPTION'][:60], attr['MANUFACTURER'], attr['INTERNAL_CODE'], int(attr['QUANTITY']), int(attr['ID']))
-            print(val)
-            cursor.execute(sql, val)
-    conn.commit()
+    # print(data)
+        
+    r = post_zoda_trans(data)
     
 parse_xml(os.path.join('rmged204-1.xml'))
 
