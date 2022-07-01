@@ -63,7 +63,7 @@ def get_attributes(row):
 
 def post_zoda_trans(data):
     r = requests.post(f"{API_URL}{COMPANY}/ZODA_TRANS", json=data, auth=(PRIORITY_API_USERNAME, PRIORITY_API_PASSWORD))
-    # log_response(r)
+    log_response(r)
     return r
 
 def post_zoda_load(data):
@@ -97,7 +97,7 @@ def parse_xml(path):
         #POST CHILDREN TO ZODA_LOAD
         child_part = {
             "RECORDTYPE": "2",
-            "TEXT1": attr['INTERNAL_CODE'],
+            "TEXT1": attr['INTERNAL_CODE'] if attr['INTERNAL_CODE'] else attr['PART_NUMBER'],
             "TEXT2": attr['MANUFACTURER'],
             "TEXT21": attr['DESCRIPTION'][:60],
             "REAL1": int(attr['QUANTITY']),
@@ -109,7 +109,21 @@ def parse_xml(path):
     # print(data)
         
     r = post_zoda_trans(data)
-    
-parse_xml(os.path.join('rmged204-1.xml'))
+    return r
 
+def handle_files():
+    input_dir = os.fsencode('XML-Input')
+
+    for file in os.listdir(input_dir):
+        filename = os.fsdecode(file)
+        if filename.endswith(".xml"):
+            status = parse_xml(os.path.join('\\vm-pdm\Priority Electric Exports/', filename)).ok
+            path_to_current_file = os.path.join('\\vm-pdm\Priority Electric Exports\save', filename)
+            path_to_new_file = os.path.join('XML-Loaded', filename)
+
+            if(status):
+                shutil.move(path_to_current_file, path_to_new_file)
+
+# print(parse_xml(os.path.join(os.path.join('XML-Input','rmged204-1.xml'))))
+handle_files()
     
