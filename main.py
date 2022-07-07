@@ -112,17 +112,21 @@ def parse_xml(path):
     return r
 
 def handle_files():
-    input_dir = os.fsencode('XML-Input')
+    logging.info('Parsing files in directory...')
+    input_dir = os.fsencode('//vm-pdm/Priority Electric Exports/')
 
     for file in os.listdir(input_dir):
         filename = os.fsdecode(file)
         if filename.endswith(".xml"):
-            status = parse_xml(os.path.join('\\vm-pdm\Priority Electric Exports/', filename)).ok
-            path_to_current_file = os.path.join('\\vm-pdm\Priority Electric Exports\save', filename)
-            path_to_new_file = os.path.join('XML-Loaded', filename)
+            response = parse_xml(os.path.join('//vm-pdm/Priority Electric Exports/', filename))
+            status = response.ok
+            print(response.json())
+            path_to_current_file = os.path.join('//vm-pdm/Priority Electric Exports/', filename)
+            path_to_new_file = os.path.join('//vm-pdm/Priority Electric Exports/save', filename)
 
             if(status):
                 shutil.move(path_to_current_file, path_to_new_file)
+    logging.info('Parsed all existing files in directory...')
 
 # print(parse_xml(os.path.join(os.path.join('XML-Input','rmged204-1.xml'))))
 handle_files()
